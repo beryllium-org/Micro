@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - uses: psf/black@23.7.0
+      - uses: psf/black@26.3.0
 
         with:
           options: "--verbose"
