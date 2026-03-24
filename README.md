@@ -1,4 +1,4 @@
-# Beryllium OS
+# Beryllium OS Micro
 A unix-like operating system for CircuitPython powered microcontrollers.  <a href="https://github.com/psf/black"><img alt="Code style: black" src="https://img.shields.io/badge/code%20style-black-000000.svg"></a><br />
 (Formerly known as ljinux)<br />
 ![neofetch](other/screenshots/boot.gif)<br />
