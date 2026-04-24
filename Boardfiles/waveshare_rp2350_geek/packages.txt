@@ -1,0 +1,13 @@
+sysinfo
+ducky
+ed
+hashutils
+jpkg
+less
+nano
+neofetch
+lm_sensors
+uartutils
+i2ctools
+i2stools
+adctools

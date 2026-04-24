@@ -1,0 +1,15 @@
+
+      ,-------------------------------------.
+      | 16MB   ^^                 WAVESHARE |
+,-----| FLASH  SD               RP2350-GEEK |
+| B   |                        1.14inch LCD |
+| B   | UART   DEBUG   I2C/ADC   3V3 GP29   |
+`-----| GP4 G GP5 | GP2 G GP3 | G GP28 GP29 |
+      `-------------------------------------'
+
+Revision           : ???
+SoC                : RP2350
+RAM                : 512KB
+Storage            : 16MB
+Wi-fi              : False
+Bluetooth          : False
