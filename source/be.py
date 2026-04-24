@@ -919,6 +919,32 @@ class be:
             return argd
 
         class fs:
+            def _collapse(path: str) -> str:
+                """
+                Normalize separators and dot-segments in a path.
+                """
+                if not path:
+                    return path
+                while "//" in path:
+                    path = path.replace("//", "/")
+                absolute = path[0] == "/"
+                parts = []
+                for part in path.split("/"):
+                    if part in ["", "."]:
+                        continue
+                    if part == "..":
+                        if len(parts):
+                            parts.pop()
+                        elif not absolute:
+                            parts.append(part)
+                    else:
+                        parts.append(part)
+                if absolute:
+                    return "/" + "/".join(parts) if len(parts) else "/"
+                if len(parts):
+                    return "/".join(parts)
+                return "."
+
             def resolve(back: str = None) -> str:
                 """
                 Beryllium standard api path translation.
@@ -931,7 +957,7 @@ class be:
                 else:
                     hd = "/"
                 if back is None:
-                    a = getcwd()
+                    a = be.api.fs._collapse(getcwd())
                     if a.startswith(hd):
                         res = "~" + a[len(hd) :]
                     elif a == "/":
@@ -945,21 +971,28 @@ class be:
                     if " " in res:
                         res = res.replace(" ", "\\ ")
                 else:  # resolve path back to normal
-                    if back in ["&/", "&"]:  # board root
+                    if back == "":
+                        res = ""
+                    elif back in ["&/", "&"]:  # board root
                         res = "/"
                     elif back.startswith("&/"):
-                        res = back[1:]
+                        res = be.api.fs._collapse(back[1:])
                     elif back.startswith(pv[0]["root"]):
-                        res = back  # already good
+                        res = be.api.fs._collapse(back)  # already good
                     elif back[0] == "/":
                         # This is for absolute paths
                         res = pv[0]["root"]
                         if back != "/":
                             res += back
+                        res = be.api.fs._collapse(res)
                     elif back[0] == "~":
                         res = hd
                         if back != "~":
                             res += back[1:]
+                        res = be.api.fs._collapse(res)
+                    elif back[0] == ".":
+                        # Force dot-relative targets to canonical absolute paths.
+                        res = be.api.fs._collapse(getcwd() + "/" + back)
                     else:
                         res = back
                 return res
@@ -975,7 +1008,7 @@ class be:
                 res = ""
                 try:
                     chdir(path)
-                    res = getcwd()
+                    res = be.api.fs._collapse(getcwd())
                     chdir(old)
                 except:
                     pass
@@ -1055,12 +1088,15 @@ class be:
                 Standard api list directory function.
                 Supports all virtual storages.
                 """
-                nr = (not getcwd().startswith(pv[0]["root"])) and not path.startswith(
-                    pv[0]["root"]
+                nr = (not getcwd().startswith(pv[0]["root"])) and not (
+                    path.startswith(pv[0]["root"])
+                    or path.startswith("/")
+                    or path.startswith("~")
+                    or path.startswith("&")
                 )
                 try:
                     path = be.api.fs.resolve(be.api.fs.base(path))
-                    if nr and path.startswith(pv[0]["root"]):
+                    if nr and path.startswith(pv[0]["root"] + "/"):
                         path = path[len(pv[0]["root"]) :]
                 except IndexError:
                     path = None
