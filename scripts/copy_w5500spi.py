@@ -6,7 +6,6 @@ from sys import path as spath
 spath.append("../scripts/CircuitMPY/")
 import circuitmpy
 
-
 optimis = 3
 try:
     if argv[1] == "debug":

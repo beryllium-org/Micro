@@ -3,7 +3,6 @@ from os import listdir, system, walk, path, chdir, getcwd, remove
 from shutil import copyfile
 from sys import path as spath
 
-
 spath.append("./jz")
 from jz import compress
 

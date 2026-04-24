@@ -5,7 +5,6 @@ spath.append("../scripts/CircuitMPY/")
 spath.append("../other/cptoml/")
 import circuitmpy
 
-
 if "FSNAME" not in environ:
     environ["FSNAME"] = "BERYLLIUM"
 [boardpath, board, version] = circuitmpy.detect_board()

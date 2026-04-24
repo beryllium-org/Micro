@@ -174,9 +174,11 @@ class driver_wifi:
             "ip": wifi.radio.ipv4_address,
             "ip_ap": wifi.radio.ipv4_address_ap,
             "power": str(wifi.radio.enabled),
-            "gateway": wifi.radio.ipv4_gateway
-            if not wifi.radio.ap_active
-            else wifi.radio.ipv4_gateway_ap,
+            "gateway": (
+                wifi.radio.ipv4_gateway
+                if not wifi.radio.ap_active
+                else wifi.radio.ipv4_gateway_ap
+            ),
             "mode": self.mode,
             "ssid": self._ssid,
             "dns": wifi.radio.ipv4_dns,
