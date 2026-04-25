@@ -1,5 +1,5 @@
 # ------------------------------------ #
-#             Beryllium OS             #
+#          Beryllium OS Micro          #
 #                                      #
 # I'm crying, pls no more optimisation #
 # ------------------------------------ #
@@ -1558,7 +1558,7 @@ class be:
             be.based.system_vars["VERSION"] = pv[0]["Version"]
 
             term.write(
-                "\nWelcome to Beryllium kernel {}!\n\n".format(
+                "\nWelcome to Beryllium OS Micro {}!\n\n".format(
                     be.based.system_vars["VERSION"]
                 ),
                 end="",
