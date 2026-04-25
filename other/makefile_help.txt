@@ -1,4 +1,4 @@
-Ljinux Makefile
+Beryllium OS Micro Makefile
 
 Usage:
 
@@ -6,28 +6,28 @@ Usage:
 
 Targets:
 
-    install     Install ljinux (along with all the needed dependecies to boot) on the board.
-    kernel      Install the ljinux kernel onto the board. This as by itself will not boot.
-    debug       Install the ljinux kernel onto the board, but doesn't optimise it. This
+    install     Install Beryllium OS Micro (along with all the needed dependecies to boot) on the board.
+    kernel      Install the kernel onto the board. This as by itself will not boot.
+    debug       Install the kernel onto the board, but doesn't optimise it. This
                  option should only be used for kernel development.
     help        Displays this help screen.
-                
-    wifi        Installs the ljinux kernel module driver_wifi onto the board.
-                 This module allows you to use ljinux along with the built-in circuitpython
+
+    wifi        Installs the kernel module driver_wifi onto the board.
+                 This module allows you to use Beryllium OS Micro along with the built-in circuitpython
                  wifi module. Accepts "debug" as an argument.
-    w5500spi    Installs the ljinux kernel module driver_w5500spi onto the board.
-                 This module allows you to use ljinux along with a w5500 (spi interface)
+    w5500spi    Installs the kernel module driver_w5500spi onto the board.
+                 This module allows you to use Beryllium OS Micro along with a w5500 (spi interface)
                  device. Accepts "debug" as an argument.
-                
+
     ccon        Install CircuitPythonConnect to your system. It will be available as "ccon".
     connection  Run a board connection without installing ccon.
 
     clean       Wipe any local build folders.
 
 To create a installation folder in the source directory for use with wifi/ble-only boards, use:
-    
+
     BOARD=<INSERT BOARD NAME HERE> install
-    
+
 This will create a folder in within source, that contains all the files needed.
 You can upload these over the workflow of your choice.
 You can find the board name in the folder "Boardfiles".
