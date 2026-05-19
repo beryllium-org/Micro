@@ -1,2 +1,3 @@
 gpiochip
 led_generic
+led_neopixel
