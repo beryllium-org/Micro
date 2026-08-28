@@ -681,6 +681,13 @@ class be:
                     ["amogus", "sus", "test"] in that specific order.
                 "o" for all the options, with their respective values.
                     Example: "ls -a /bin", {"a": "/bin"} is gonna be in "o"
+                    If a flag appears more than once, "o" holds only the
+                    LAST value seen.
+                "mo" for all the options, but as lists of every value seen,
+                    in the order they were given.
+                    Example: "grep -e foo -e bar", {"e": ["foo", "bar"]}
+                    is gonna be in "mo". Flags given without a value are
+                    recorded as None entries.
                 "n" if False is passed to fn, contains the filename
 
             Variables automatically converted to their values.
@@ -693,9 +700,14 @@ class be:
             inpt = rinpt.split(" ")
 
             options = {}
+            multi_options = {}
             words = []
             hidwords = []
             allwords = []
+
+            def _record_option(entry, value):
+                options[entry] = value
+                multi_options.setdefault(entry, []).append(value)
 
             n = False  # in keyword
             s = False  # in string
@@ -837,7 +849,9 @@ class be:
                         temp_s = [inpt[i][:-1]]
                         continue
                     elif inpt[i].endswith("\\") and len(inpt[i]) > 1:
-                        temp_s.append(temp[i][:-1])
+                        temp_s.append(
+                            inpt[i][:-1]
+                        )  # was `temp[i]` (NameError on 3+ segments)
                         continue
                     else:
                         ftemps = " ".join(temp_s + [inpt[i]])
@@ -880,14 +894,14 @@ class be:
                             s = True
                         else:
                             fstr = inpt[i][1:-1]
-                            options.update({entry: fstr})
+                            _record_option(entry, fstr)
                             hidwords.append(fstr)
                             allwords.append(fstr)
                             n = False
                     elif s:
                         if inpt[i].endswith('"'):
                             temp_s += " " + inpt[i][:-1]
-                            options.update({entry: temp_s})
+                            _record_option(entry, temp_s)
                             hidwords.append(temp_s)
                             allwords.append(temp_s)
                             n = False
@@ -895,26 +909,27 @@ class be:
                         else:
                             temp_s += " " + inpt[i]
                     elif inpt[i].startswith("-"):
-                        options.update({entry: None})  # no option for the previous one
+                        _record_option(entry, None)  # no option for the previous one
                         entry = inpt[i][1 + (int(inpt[i].startswith("--"))) :]
                         # leaving n = True
                     else:
-                        options.update({entry: inpt[i]})
+                        _record_option(entry, inpt[i])
                         hidwords.append(inpt[i])
                         allwords.append(inpt[i])
                         n = False
             if n:  # we have incomplete keyword
                 # not gonna bother if s is True
-                options.update({entry: None})
+                _record_option(entry, None)
 
             argd = {
                 "w": words if words != [""] else [],
                 "hw": hidwords,
                 "aw": allwords,
                 "o": options,
+                "mo": multi_options,
             }
 
-            if r is 1:  # add the filename
+            if r == 1:  # add the filename
                 argd.update({"n": inpt[0]})
             return argd
 
