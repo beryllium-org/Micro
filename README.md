@@ -25,7 +25,7 @@ Table of Contents
 
 ## Prerequisites and hardware support
 
-Runs on CircuitPython <code>9.0.X</code> and later (actively updated for 11.0-beta.0).<br />
+Runs on CircuitPython <code>9.0.X</code> and later (actively updated for <code>11.0-beta.0</code>).<br />
 Currently the supported boards are:<br />
 
 Espressif:<br />
