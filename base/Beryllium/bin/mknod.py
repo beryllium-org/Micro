@@ -11,7 +11,8 @@ if len(vr("opts")["w"]):
         vr("id", len(list(be.devices[vr("opts")["w"][0]])))
     be.devices[vr("opts")["w"][0]][vr("id")] = None
     vrp("res", str(len(be.devices[vr("opts")["w"][0]]) - 1))
+    be.api.setvar("out", vr("res"))
+    be.api.setvar("return", "0")
 else:
-    vr("res", "1")
     be.based.error(1)
-be.api.setvar("return", vr("res"))
+    be.api.setvar("return", "1")

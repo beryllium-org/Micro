@@ -697,7 +697,7 @@ class be:
             if rinpt is None:
                 rinpt = be.based.user_vars["argj"]
 
-            inpt = rinpt.split(" ")
+            lexed = be.based._lex_scan(rinpt)
 
             options = {}
             multi_options = {}
@@ -709,216 +709,108 @@ class be:
                 options[entry] = value
                 multi_options.setdefault(entry, []).append(value)
 
-            n = False  # in keyword
-            s = False  # in string
-            mw = False  # multi\ word\ string
-            temp_s = None  # temporary string
-            entry = None  # keyword
+            def _expand_seg(seg: str):
+                # $vars and GPIO pseudo-vars expand at segment start;
+                # returns seg untouched when nothing matches
+                if seg.startswith("$"):
+                    return be.api.adv_input(seg[1:])
+                if seg.startswith("gp#") and seg[3:] in be.devices["gpiochip"][0].pins:
+                    pin_name = seg[3:]
+                    if pin_name in pv[0]["digitalio_store"]:
+                        return str(pv[0]["digitalio_store"][pin_name].value)
+                    if be.devices["gpiochip"][0].is_free(pin_name):
+                        tmp_gpio = be.devices["gpiochip"][0].input(pin_name)
+                        val = str(tmp_gpio.value)
+                        tmp_gpio.deinit()
+                        return val
+                    term.write("Could not allocate GPIO " + pin_name)
+                    return seg
+                if seg.startswith("adc#") and seg[4:] in be.devices["gpiochip"][0].pins:
+                    pin_name = seg[4:]
+                    if pin_name in pv[0]["analogio_store"]:
+                        return str(pv[0]["analogio_store"][pin_name].value)
+                    if pin_name in pv[0]["digitalio_store"]:
+                        return str(pv[0]["digitalio_store"][pin_name].value)
+                    if be.devices["gpiochip"][0].is_free(pin_name):
+                        tmp_gpio = be.devices["gpiochip"][0].adc(pin_name)
+                        val = str(tmp_gpio.value)
+                        if pin_name not in pv[0]["analogio_store"]:
+                            tmp_gpio.deinit()
+                        return val
+                    term.write("Could not allocate GPIO " + pin_name)
+                    return seg
+                if (
+                    seg.startswith("adcv#")
+                    and seg[5:] in be.devices["gpiochip"][0].pins
+                ):
+                    pin_name = seg[5:]
+                    if pin_name in pv[0]["digitalio_store"]:
+                        return str(pv[0]["digitalio_store"][pin_name].value)
+                    if pin_name in pv[0]["analogio_store"]:
+                        tmp_gpio = pv[0]["analogio_store"][pin_name]
+                    elif be.devices["gpiochip"][0].is_free(pin_name):
+                        tmp_gpio = be.devices["gpiochip"][0].adc(pin_name)
+                    else:
+                        term.write("Could not allocate GPIO " + pin_name)
+                        return seg
+                    val = str(tmp_gpio.value * (tmp_gpio.reference_voltage / 65535))
+                    if pin_name not in pv[0]["analogio_store"]:
+                        tmp_gpio.deinit()
+                    return val
+                return seg
+
+            def _expand_word(word: str, quoted: bool) -> str:
+                # quoted/escaped words expand per segment, bare words whole
+                if quoted:
+                    parts = []
+                    for seg in word.split(" "):
+                        if seg:
+                            parts.append(_expand_seg(seg))
+                        else:
+                            parts.append(seg)
+                    return " ".join(parts)
+                return _expand_seg(word)
 
             r = 0 if fn else 1
+            n = False  # in keyword
+            entry = None  # keyword
 
-            for i in range(r, len(inpt)):
-                if not inpt[i]:
-                    continue
-                if inpt[i][0] == "$":  # variable
-                    if not s:
-                        inpt[i] = be.api.adv_input(inpt[i][1:])
-                    elif inpt[i].endswith('"'):
-                        temp_s += be.api.adv_input(inpt[i][:-1])
-                        words.append(temp_s)
-                        allwords.append(temp_s)
-                        s = False
-                    elif '"' not in inpt[i]:
-                        temp_s += " " + be.api.adv_input(inpt[i][1:])
-                        continue
+            for i in range(r, len(lexed)):
+                word, quoted = lexed[i]
+                if quoted:
+                    # never parses as an option: a value when one is expected
+                    word = _expand_word(word, True)
+                    if n:
+                        _record_option(entry, word)
+                        hidwords.append(word)
+                        n = False
                     else:
-                        temp_s += " " + be.api.adv_input(inpt[i][1 : inpt[i].find('"')])
-                        words.append(temp_s)
-                        allwords.append(temp_s)
-                        s = False
-                        inpt[i] = inpt[i][inpt[i].find('"') + 1 :]
-                elif inpt[i].startswith("gp#") and (
-                    inpt[i][3:] in be.devices["gpiochip"][0].pins
-                ):
-                    if not s:
-                        pin_name = inpt[i][3:]
-                        if pin_name not in pv[0]["digitalio_store"]:
-                            if be.devices["gpiochip"][0].is_free(pin_name):
-                                tmp_gpio = be.devices["gpiochip"][0].input(pin_name)
-                                inpt[i] = str(tmp_gpio.value)
-                                tmp_gpio.deinit()
-                            else:
-                                term.write("Could not allocate GPIO " + pin_name)
-                        else:
-                            inpt[i] = str(pv[0]["digitalio_store"][pin_name].value)
-                    elif inpt[i].endswith('"'):
-                        temp_s += be.api.adv_input(inpt[i][:-1])
-                        words.append(temp_s)
-                        allwords.append(temp_s)
-                        s = False
-                    elif '"' not in inpt[i]:
-                        temp_s += " " + be.api.adv_input(inpt[i][1:])
-                        continue
-                    else:
-                        temp_s += " " + be.api.adv_input(inpt[i][1 : inpt[i].find('"')])
-                        words.append(temp_s)
-                        allwords.append(temp_s)
-                        s = False
-                        inpt[i] = inpt[i][inpt[i].find('"') + 1 :]
-                elif inpt[i].startswith("adc#") and (
-                    inpt[i][4:] in be.devices["gpiochip"][0].pins
-                ):
-                    if not s:
-                        pin_name = inpt[i][4:]
-                        tmp_gpio = None
-                        if pin_name in pv[0]["analogio_store"]:
-                            tmp_gpio = pv[0]["analogio_store"][pin_name]
-                        elif pin_name not in pv[0]["digitalio_store"]:
-                            if be.devices["gpiochip"][0].is_free(pin_name):
-                                tmp_gpio = be.devices["gpiochip"][0].adc(pin_name)
-                            else:
-                                term.write("Could not allocate GPIO " + pin_name)
-                        else:
-                            # Can read digitalio, ignore
-                            inpt[i] = str(pv[0]["digitalio_store"][pin_name].value)
-                        if tmp_gpio is not None:
-                            inpt[i] = str(tmp_gpio.value)
-                            if pin_name not in pv[0]["analogio_store"]:
-                                tmp_gpio.deinit()
-                    elif inpt[i].endswith('"'):
-                        temp_s += be.api.adv_input(inpt[i][:-1])
-                        words.append(temp_s)
-                        allwords.append(temp_s)
-                        s = False
-                    elif '"' not in inpt[i]:
-                        temp_s += " " + be.api.adv_input(inpt[i][1:])
-                        continue
-                    else:
-                        temp_s += " " + be.api.adv_input(inpt[i][1 : inpt[i].find('"')])
-                        words.append(temp_s)
-                        allwords.append(temp_s)
-                        s = False
-                        inpt[i] = inpt[i][inpt[i].find('"') + 1 :]
-                elif inpt[i].startswith("adcv#") and (
-                    inpt[i][5:] in be.devices["gpiochip"][0].pins
-                ):
-                    if not s:
-                        pin_name = inpt[i][5:]
-                        if pin_name not in pv[0]["digitalio_store"]:
-                            tmp_gpio = None
-                            if pin_name in pv[0]["analogio_store"]:
-                                tmp_gpio = pv[0]["analogio_store"][pin_name]
-                            elif be.devices["gpiochip"][0].is_free(pin_name):
-                                tmp_gpio = be.devices["gpiochip"][0].adc(pin_name)
-                            else:
-                                term.write("Could not allocate GPIO " + pin_name)
-                            if tmp_gpio is not None:
-                                inpt[i] = str(
-                                    tmp_gpio.value
-                                    * (tmp_gpio.reference_voltage / 65535)
-                                )
-                                if pin_name not in pv[0]["analogio_store"]:
-                                    tmp_gpio.deinit()
-                        else:
-                            # Can read digitalio, ignore
-                            inpt[i] = str(pv[0]["digitalio_store"][pin_name].value)
-                    elif inpt[i].endswith('"'):
-                        temp_s += be.api.adv_input(inpt[i][:-1])
-                        words.append(temp_s)
-                        allwords.append(temp_s)
-                        s = False
-                    elif '"' not in inpt[i]:
-                        temp_s += " " + be.api.adv_input(inpt[i][1:])
-                        continue
-                    else:
-                        temp_s += " " + be.api.adv_input(inpt[i][1 : inpt[i].find('"')])
-                        words.append(temp_s)
-                        allwords.append(temp_s)
-                        s = False
-                        inpt[i] = inpt[i][inpt[i].find('"') + 1 :]
-                elif (not s) and (not mw) and inpt[i].startswith('"$'):
-                    if inpt[i].endswith('"'):
-                        inpt[i] = be.api.adv_input(inpt[i][2:-1])
-                    else:
-                        temp_s = be.api.adv_input(inpt[i][2:])
-                        s = True
-                        continue
-                elif mw or ((not s) and inpt[i].endswith("\\") and len(inpt[i]) > 1):
-                    if not mw:
-                        mw = True
-                        temp_s = [inpt[i][:-1]]
-                        continue
-                    elif inpt[i].endswith("\\") and len(inpt[i]) > 1:
-                        temp_s.append(
-                            inpt[i][:-1]
-                        )  # was `temp[i]` (NameError on 3+ segments)
-                        continue
-                    else:
-                        ftemps = " ".join(temp_s + [inpt[i]])
-                        words.append(ftemps)
-                        allwords.append(ftemps)
-                        temp_s = None
-                        mw = False
-                        continue
-                if not n:
-                    if (not s) and inpt[i].startswith("-"):
-                        if not len(inpt[i]) - 1:
-                            words.append(inpt[i])
-                            allwords.append(inpt[i])
-                            continue
-                        entry = inpt[i][1 + (int(inpt[i].startswith("--"))) :]
-                        n = True
-                    elif (not s) and inpt[i].startswith('"'):
-                        if not inpt[i].endswith('"'):
-                            temp_s = inpt[i][1:]
-                            s = True
-                        else:
-                            finpt = inpt[i][1:-1]
-                            words.append(finpt)
-                            allwords.append(finpt)
-                    elif s:
-                        if inpt[i].endswith('"'):
-                            temp_s += " " + inpt[i][:-1]
-                            words.append(temp_s)
-                            allwords.append(temp_s)
-                            s = False
-                        else:
-                            temp_s += " " + inpt[i]
-                    else:
-                        words.append(inpt[i])
-                        allwords.append(inpt[i])
-                else:  # in keyword
-                    if (not s) and inpt[i].startswith('"'):
-                        if not inpt[i].endswith('"'):
-                            temp_s = inpt[i][1:]
-                            s = True
-                        else:
-                            fstr = inpt[i][1:-1]
-                            _record_option(entry, fstr)
-                            hidwords.append(fstr)
-                            allwords.append(fstr)
-                            n = False
-                    elif s:
-                        if inpt[i].endswith('"'):
-                            temp_s += " " + inpt[i][:-1]
-                            _record_option(entry, temp_s)
-                            hidwords.append(temp_s)
-                            allwords.append(temp_s)
-                            n = False
-                            s = False
-                        else:
-                            temp_s += " " + inpt[i]
-                    elif inpt[i].startswith("-"):
-                        _record_option(entry, None)  # no option for the previous one
-                        entry = inpt[i][1 + (int(inpt[i].startswith("--"))) :]
+                        words.append(word)
+                    allwords.append(word)
+                elif n:
+                    word = _expand_seg(word)
+                    if word.startswith("-"):
+                        _record_option(entry, None)  # no value for the previous one
+                        entry = word[1 + (int(word.startswith("--"))) :]
                         # leaving n = True
                     else:
-                        _record_option(entry, inpt[i])
-                        hidwords.append(inpt[i])
-                        allwords.append(inpt[i])
+                        _record_option(entry, word)
+                        hidwords.append(word)
+                        allwords.append(word)
                         n = False
+                else:
+                    word = _expand_seg(word)
+                    if word.startswith("-"):
+                        if len(word) == 1:
+                            words.append(word)
+                            allwords.append(word)
+                        else:
+                            entry = word[1 + (int(word.startswith("--"))) :]
+                            n = True
+                    else:
+                        words.append(word)
+                        allwords.append(word)
             if n:  # we have incomplete keyword
-                # not gonna bother if s is True
                 _record_option(entry, None)
 
             argd = {
@@ -930,7 +822,7 @@ class be:
             }
 
             if r == 1:  # add the filename
-                argd.update({"n": inpt[0]})
+                argd.update({"n": lexed[0][0] if len(lexed) else ""})
             return argd
 
         class fs:
@@ -1067,26 +959,25 @@ class be:
                 def __init__(self, fname, mod="r", ctx=None):
                     self.fn = fname
                     self.mod = mod
+                    self._rm = False
 
                 def __enter__(self):
                     # print(f"DEBUG FOPEN: {self.fn}:{self.mod}")
                     try:
-                        rm = False  # remount
                         fname = be.api.fs.resolve(self.fn)
                         # print(f"DEBUG FNAME: {fname}")
                         if "w" in self.mod or "a" in self.mod:
                             if fname in be.code_cache:
                                 be.code_cache.pop(fname)
-                            rm = True
-                        if rm:
+                            # Only flag if rw worked
                             remount("/", False)
+                            self._rm = True
                         self.file = open(fname, self.mod)
                         del fname
-                        if rm:
-                            remount("/", True)
+                        return self.file
                     except (RuntimeError, OSError):
+                        self.file = None
                         return None
-                    return self.file
 
                 def __exit__(self, typee, value, traceback):
                     try:
@@ -1096,6 +987,10 @@ class be:
                         del self.file
                     except AttributeError:
                         pass
+                    # Restore ro only after the handle is closed
+                    if self._rm:
+                        remount("/", True)
+                        self._rm = False
                     del self.fn, self.mod
 
             def listdir(path=".") -> list:
@@ -1317,10 +1212,10 @@ class be:
             be.history.modified = True
             if (len(be.history.historyy) > 0 and itemm != be.history.gett(1)) or len(
                 be.history.historyy
-            ) is 0:
+            ) == 0:
                 if len(be.history.historyy) < be.history.sz:
                     be.history.historyy.append(itemm)
-                elif len(be.history.historyy) is be.history.sz:
+                elif len(be.history.historyy) == be.history.sz:
                     be.history.shift(itemm)
                 else:
                     be.history.historyy = be.history.historyy[
@@ -1415,6 +1310,8 @@ class be:
         silent = False
         olddir = None
         pled = False  # persistent led state for nested exec
+        # True while shell()'s segment loop owns run()/_capture_run.
+        _in_driver = False
         alias_dict = {}
 
         user_vars = {
@@ -1854,49 +1751,268 @@ class be:
                 gc.collect()
                 end_process()
 
+        def lex(inpt: str) -> list:
+            """
+            Quote-aware tokenizer for full command lines.
+            Words are split on unquoted spaces. Single quotes protect
+            everything (no escapes inside). Double quotes protect
+            everything but backslash escapes. Backslash escapes the next
+            character anywhere outside single quotes. Quote characters
+            themselves are dropped.
+            """
+            return [word for word, _ in be.based._lex_scan(inpt)]
+
+        def _lex_scan(inpt: str) -> list:
+            # -> [(word, quoted)]; quoted marks tokens built via quotes or
+            # escapes: they must never be parsed as options by xarg
+            out = []
+            buf = ""
+            quoted = False
+            open_ = False  # token started; tracks explicitly empty tokens
+            esc = sq = dq = False
+            for c in inpt:
+                if esc:
+                    buf += c
+                    esc = False
+                    quoted = True
+                    open_ = True
+                elif c == "\\" and not sq:
+                    esc = True
+                    quoted = True
+                    open_ = True
+                elif c == "'":
+                    if dq:
+                        buf += c
+                    else:
+                        sq = not sq
+                        quoted = True
+                        open_ = True
+                elif c == '"':
+                    if sq:
+                        buf += c
+                    else:
+                        dq = not dq
+                        quoted = True
+                        open_ = True
+                elif c == " ":
+                    if sq or dq:
+                        buf += c
+                        quoted = True
+                        open_ = True
+                    elif open_:
+                        out.append((buf, quoted))
+                        buf = ""
+                        quoted = False
+                        open_ = False
+                else:
+                    buf += c
+                    open_ = True
+            if open_:
+                out.append((buf, quoted))
+            return out
+
         def parse_pipes(inpt: str):
-            # This is a pipe
-            p_and = "&&" in inpt
-            p_to = "|" in inpt
+            """
+            Split a line into pipeline segments outside of quotes.
 
-            comlist = []
-            silencelist = []
-            comindex = -1
+            Unquoted operators: "&&", "||", "|" and ";" (the latter two
+            also "silently" terminate a segment). Redirections ">", ">>"
+            and "<" are lifted out of their segment together with the raw
+            (still quoted) path word that follows them.
 
-            if p_and and p_to:  # TODO
-                # silencelist.append(False)
-                # silencelist.append(True)
-                pass
-            elif p_and:
-                while "&&" in inpt:
-                    silencelist.append(False)
-                    comlist.append(inpt[: inpt.find("&&")])
-                    inpt = inpt[inpt.find("&&") + 2 :]
-                    comindex += 1
-                    while comlist[comindex].endswith(" "):
-                        comlist[comindex] = comlist[comindex][:-1]
-                    while comlist[comindex].startswith(" "):
-                        comlist[comindex] = comlist[comindex][1:]
+            Returns a list of segment dicts:
+                {"cmd": segment text with quotes intact,
+                 "redirs": [[op, raw_path_word], ...] in order,
+                 "join": operator that preceded this segment, ";" for the
+                     first one, "|" if it is fed by the previous segment's
+                     output through the "in" user-variable data channel}
 
-                while inpt.endswith(" "):
-                    inpt = inpt[:-1]
-                while inpt.startswith(" "):
-                    inpt = inpt[1:]
-                silencelist.append(False)
-                comlist.append(inpt)
-            elif p_to:  # TODO
-                # silencelist.append(False)
-                # silencelist.append(True)
-                pass
-            else:
-                silencelist.append(False)
-                comlist.append(inpt)
+            Segments stay raw: re-lex them with lex()/_lex_scan
+            downstream. This is only consumed by be.based.shell().
+            """
+            segs = []
+            seg = ""
+            redirs = []
+            join = ";"
+            esc = sq = dq = False
+            mode = 0  # 0 command text, 1 after redirect op, 2 path word
+            path = ""
+            n = len(inpt)
+            i = 0
+            while i < n:
+                c = inpt[i]
+                nxt = inpt[i + 1 : i + 2]
+                if esc:
+                    esc = False
+                    if mode:
+                        path += c
+                    else:
+                        seg += c
+                elif c == "\\" and not sq:
+                    esc = True
+                    if mode:
+                        path += c
+                    else:
+                        seg += c
+                elif c == "'" and not dq:
+                    sq = not sq
+                    if mode == 1:
+                        mode = 2
+                    if mode == 2:
+                        path += c
+                    else:
+                        seg += c
+                elif c == '"' and not sq:
+                    dq = not dq
+                    if mode == 1:
+                        mode = 2
+                    if mode == 2:
+                        path += c
+                    else:
+                        seg += c
+                elif sq or dq:
+                    if mode == 2:
+                        path += c
+                    else:
+                        seg += c
+                elif c in " \t":
+                    if mode == 2:
+                        redirs[-1][1] = path
+                        path = ""
+                        mode = 0
+                        seg += c
+                    elif mode == 1:
+                        pass
+                    else:
+                        seg += c
+                elif mode == 2:
+                    if c in "&|;<>":
+                        # Operator ends the path word; re-dispatch it.
+                        redirs[-1][1] = path
+                        path = ""
+                        mode = 0
+                        continue
+                    path += c
+                elif mode == 1:
+                    mode = 2
+                    path += c
+                elif c == ">" and nxt == ">":
+                    redirs.append([">>", ""])
+                    mode = 1
+                    i += 1
+                elif c == ">":
+                    redirs.append([">", ""])
+                    mode = 1
+                elif c == "<":
+                    redirs.append(["<", ""])
+                    mode = 1
+                elif c == "|" and nxt == "|":
+                    segs.append({"cmd": seg.strip(), "redirs": redirs, "join": join})
+                    seg = ""
+                    redirs = []
+                    join = "||"
+                    i += 1
+                elif c == "&" and nxt == "&":
+                    segs.append({"cmd": seg.strip(), "redirs": redirs, "join": join})
+                    seg = ""
+                    redirs = []
+                    join = "&&"
+                    i += 1
+                elif c == "|":
+                    segs.append({"cmd": seg.strip(), "redirs": redirs, "join": join})
+                    seg = ""
+                    redirs = []
+                    join = "|"
+                elif c == ";":
+                    segs.append({"cmd": seg.strip(), "redirs": redirs, "join": join})
+                    seg = ""
+                    redirs = []
+                    join = ";"
+                else:
+                    seg += c
+                i += 1
+            if mode == 2:
+                redirs[-1][1] = path
+            segs.append({"cmd": seg.strip(), "redirs": redirs, "join": join})
+            return segs
 
-            return comlist, silencelist
+        def _redir_write(rawpath, data, mod) -> None:
+            # Write captured stdout to a file for ">" and ">>"
+            wds = be.based._lex_scan(rawpath)
+            if not len(wds):
+                return
+            with be.api.fs.open(wds[0][0], mod) as f:
+                if f:
+                    f.write(data)
+                else:
+                    be.based.error(7)
+
+        def _capture_run(executable, argv=None) -> str:
+            """
+            Run a command with term.write/term.nwrite captured into a
+            bounded buffer instead of the console, and with
+            be.based.silent set. Returns the captured text, capped at
+            2048 bytes (truncated, with a dmesg note on overflow).
+            """
+            buf = []
+            oldw, oldn, oldsilent = term.write, term.nwrite, be.based.silent
+            # Cap enforced DURING capture so RAM is bounded by the
+            # cap + epsilon regardless of output size, not only after
+            # the join.
+            total = 0
+
+            def capw(strr=None, end="\n"):
+                nonlocal total
+                if total < 2048:
+                    # Slice to remaining headroom BEFORE adding the end
+                    # terminator, so one huge call cannot balloon the
+                    # buffer past the cap.
+                    s = (strr if strr is not None else "")[: 2048 - total] + end
+                    buf.append(s)
+                    total += len(s)
+
+            def capn(strr=None):
+                nonlocal total
+                if total < 2048:
+                    s = (strr if strr is not None else "")[: 2048 - total]
+                    buf.append(s)
+                    total += len(s)
+
+            try:
+                term.write = capw
+                term.nwrite = capn
+                be.based.silent = True
+                be.based._in_driver = True
+                be.based.run(executable, argv)
+            finally:
+                term.write, term.nwrite = oldw, oldn
+                be.based.silent = oldsilent
+                be.based._in_driver = False
+            data = "".join(buf)
+            del buf
+            if total > 2048:
+                data = data[:2048]
+                dmtex("based: stdout capture truncated at 2048 bytes")
+            return data
 
         def run(executable, argv=None) -> None:
-            # runs any single command
+            """
+            Runs any single command given as a raw string (the public
+            contract used by .lja scripts re-entering run line by line).
+            Empty, whitespace-only and comment segments are ignored.
+            A segment's stdin is the "in" user variable when fed by
+            parse_pipes joins or "<", readable with xarg as any other
+            var. Runs not driven by shell()'s segment loop (scripts,
+            nested runs) print-and-clear an unconsumed $out themselves;
+            shell()'s driver consumes it instead.
+            """
 
+            # _in_driver is READ here, never cleared: the flag must stay
+            # sticky for the whole driver segment (shell() resets it after
+            # the segment). Clearing it at entry made every inner
+            # run("fpexec ...") believe it was script-context and fire its
+            # print-and-clear tail, eating $out before the driver handoff.
+            indrv = getattr(be.based, "_in_driver", False)
             ledmine = False  # ownership of led
             oldled = None
             if not be.based.pled:
@@ -1973,9 +2089,40 @@ class be:
             else:
                 be.io.ledset(oldled)
 
+            outv = be.api.getvar("out")
+            if not indrv and outv is not None:
+                # Print on consume for runs outside shell()'s driver;
+                # the driver owns and clears the channels otherwise.
+                term.nwrite(outv if isinstance(outv, str) else str(outv))
+                be.api.setvar("in", None)
+                be.api.setvar("out", None)
+
             gc.collect()
 
         def shell(led: bool = True, nalias: bool = False) -> int:
+            """
+            The interactive main shell.
+
+            Each line is split by parse_pipes() into segment dicts
+            ({"cmd", "redirs", "join"}), run left-to-right honoring
+            "&&" (skip on failure), "||" (skip on success), "|" and ";"
+            with the user-variable data channels: before each segment
+            the driver clears $out and $return; the command may set $out
+            (its explicit data output) and $return (its exit code).
+            Whatever $out holds then moves to $in (overwriting) for the
+            next segment whatever the join, and $out is cleared; $in is
+            also fed by "<" (2048-byte cap) and cleared at end of line
+            together with $out, while $return stays as the line's final
+            exit code. Unconsumed $out (no following segment, no
+            redirect) is written by the driver verbatim, no newline
+            added. Redirects ">", ">>" write $out when set, else
+            captured stdout (2048-byte cap), via be.api.fs.open. Only
+            small computed data belongs in $out: unbounded outputs (cat
+            of a file, ls, dmesg) stream straight to the terminal and
+            never set it. No stderr redirection: there is no "2>" and no
+            fd redirections -- stdin is a channel ($in), stderr is
+            error-reporting (process failure), not a file.
+            """
             # The interactive main shell
 
             launch_process("based", resume=True)  # Preserve shell data.
@@ -2180,23 +2327,55 @@ class be:
                         vr("based_hist", be.history.historyy.copy())
                         vr("based_hist_sz", be.history.sz)
 
-                        # Output to file
-                        p_write = ">" in command_input
-
-                        # Remove > pipe from line, TODO
-
                         # Fetch list of commands
-                        comlist, silencelist = be.based.parse_pipes(command_input)
-                        if len(comlist) > 1:
-                            comlist.reverse()
-                            silencelist.reverse()
-                        while len(comlist):
-                            currentcmd = comlist.pop()
-                            silencecmd = silencelist.pop()
-                            if silencecmd:
-                                be.based.silent = True
+                        seglist = be.based.parse_pipes(command_input)
+                        prev = "0"
+                        for idx in range(len(seglist)):
+                            if pv[0]["Exit"]:
+                                break
+                            segd = seglist[idx]
+                            jn = segd["join"]
+                            if jn == "&&" and prev != "0":
+                                continue
+                            if jn == "||" and prev == "0":
+                                continue
+                            be.api.setvar("out", None)
+                            be.api.setvar("return", None)
+                            # Input redirection: file into the in var
+                            for r in segd["redirs"]:
+                                if r[0] == "<":
+                                    wds = be.based._lex_scan(r[1])
+                                    if len(wds):
+                                        with be.api.fs.open(wds[0][0], "r") as f:
+                                            # Read only the cap (+1 sentinel
+                                            # byte) so RAM stays bounded.
+                                            fdata = f.read(2049) if f else ""
+                                        if len(fdata) > 2048:
+                                            fdata = fdata[:2048]
+                                            dmtex(
+                                                "based: stdin capture"
+                                                " truncated at 2048 bytes"
+                                            )
+                                        be.api.setvar("in", fdata)
+                                        del fdata
+                            nxt = seglist[idx + 1] if idx + 1 < len(seglist) else None
+                            # Redirected tail segments have no nxt to
+                            # carry the capture through; gate only the
+                            # pipe join on its existence.
+                            docap = (
+                                (nxt is not None and nxt["join"] == "|")
+                                or ">" in [r[0] for r in segd["redirs"]]
+                                or ">>" in [r[0] for r in segd["redirs"]]
+                            )
+                            cdata = None
                             try:
-                                be.based.run(currentcmd)
+                                # Mark the run as driver-owned so its
+                                # tail does not double-print/clear.
+                                be.based._in_driver = True
+                                if docap:
+                                    cdata = be.based._capture_run(segd["cmd"])
+                                else:
+                                    be.based.run(segd["cmd"])
                             except KeyboardInterrupt:
                                 """
                                 DO NOT REMOVE.
@@ -2209,10 +2388,45 @@ class be:
                                 term.flush_writes()
                                 be.based.error(20, format_exception(Err))
                                 backtrack_to_process(stored_pid)
-                            if silencecmd:
-                                be.based.silent = False
-
-                        # Write stdout to file, TODO
+                            be.based._in_driver = False
+                            outv = be.api.getvar("out")
+                            if docap:
+                                # $out set by the command takes
+                                # precedence over captured stdout.
+                                data = outv if outv is not None else cdata
+                                if data is not None:
+                                    for r in segd["redirs"]:
+                                        if r[0] == ">":
+                                            be.based._redir_write(r[1], data, "w")
+                                        elif r[0] == ">>":
+                                            be.based._redir_write(r[1], data, "a")
+                                if nxt is not None:
+                                    if outv is not None:
+                                        be.api.setvar("in", outv)
+                                    elif nxt["join"] == "|" and cdata is not None:
+                                        be.api.setvar("in", cdata)
+                            elif outv is not None:
+                                # Print on consume: unconsumed $out is
+                                # written by the driver verbatim.
+                                if nxt is None:
+                                    term.nwrite(
+                                        outv if isinstance(outv, str) else str(outv)
+                                    )
+                                else:
+                                    be.api.setvar("in", outv)
+                            del cdata
+                            be.api.setvar("out", None)
+                            rv = be.api.getvar("return")
+                            prev = (
+                                "0"
+                                if (rv is None) or (str(rv) in ("0", ""))
+                                else str(rv)
+                            )
+                        # The data channels do not outlive the line;
+                        # $return stays as the line's final exit code.
+                        be.api.setvar("in", None)
+                        be.api.setvar("out", None)
+                        del seglist
 
                         gc.collect()
                         gc.collect()

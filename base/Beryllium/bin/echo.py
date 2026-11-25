@@ -1,15 +1,8 @@
 rename_process("echo")
 vr("opts", be.api.xarg())
-be.api.setvar("return", "")
+be.api.setvar("return", "0")
 
 vr("li", vr("opts")["hw"] + vr("opts")["w"])
-for pv[get_pid()]["i"] in vr("li"):
-    be.based.user_vars["return"] += vr("i") + " "
-
-be.api.setvar("return", be.based.user_vars["return"][:-1])
-
+be.api.setvar("out", " ".join(vr("li")) if vr("li") else "")
 if "n" not in vr("opts")["o"]:
-    be.based.user_vars["return"] += "\n"
-
-if not be.based.silent:
-    term.nwrite(be.based.user_vars["return"])
+    be.based.user_vars["out"] += "\n"

@@ -24,8 +24,13 @@ if vr("argl") is not 0:
     elif vr("ass") is not None:
         vr("module", vr("ass"))
     try:
-        be.based.run("mknod " + vr("module"))
-        vr("node", be.api.getvar("return"))
+        be.api.setvar("argj", "mknod " + vr("module"))
+        be.api.subscript("/bin/mknod.py")
+        rename_process("modprobe")
+        vr("node", be.api.getvar("out"))
+        be.api.setvar("out", None)  # C O N S U M E
+        if not isinstance(vr("node"), str):
+            raise ImportError
         vr("ok", False)
         be.api.subscript("/bin/stringproccessing/devid.py")
         if vr("ok"):

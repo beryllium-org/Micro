@@ -33,6 +33,32 @@ vr("is_inv", "v" in vr("opts")["o"])
 vr("is_ln", "n" in vr("opts")["o"])
 vr("is_cnt", "c" in vr("opts")["o"])
 
+vr("in_in", be.api.getvar("in"))
+if vr("in_in") is not None and len(vr("opts")["w"]) <= 1:
+    # No file args: grep the $in when set
+    vr("ptxt", vr("in_in"))
+    if vr("ptxt") is not None:
+        vr("files", [])
+        vr("plines", vr("ptxt").split("\n"))
+        if vr("plines")[-1] == "":
+            vr("plines", vr("plines")[:-1])
+        vr("count", 0)
+        for pv[get_pid()]["i"], line in enumerate(vr("plines")):
+            vr("match_obj", re.search(vr("pattern"), line))
+
+            if (vr("match_obj") and not vr("is_inv")) or (
+                not vr("match_obj") and vr("is_inv")
+            ):
+                if vr("is_cnt"):
+                    vr("count", vr("count") + 1)
+                else:
+                    vr("prefix", "")
+                    if vr("is_ln"):
+                        vr("prefix", str(pv[get_pid()]["i"] + 1) + ":")
+                    term.nwrite(vr("prefix") + line + "\n")
+        if vr("is_cnt"):
+            term.write(str(vr("count")))
+
 for fpath in vr("files"):
     try:
         vr("display_name", fpath)
@@ -67,4 +93,4 @@ for fpath in vr("files"):
     except Exception as e:
         term.write("grep: " + fpath + ": No such file or not readable\n")
 
-del fpath, re
+del re
