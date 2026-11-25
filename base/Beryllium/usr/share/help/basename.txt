@@ -1,0 +1,6 @@
+Usage: basename NAME [SUFFIX]...
+Strip directory and any trailing SUFFIX from each NAME.
+  -a                treat all arguments as names.
+  -s SUF, --suffix=SUF
+                    remove SUF instead of the trailing argument.
+  -h, --help        displays this help message.
