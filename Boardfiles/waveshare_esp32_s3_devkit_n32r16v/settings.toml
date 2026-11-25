@@ -1,0 +1,35 @@
+CIRCUITPY_PYSTACK_SIZE = 12288
+
+[BERYLLIUM]
+setup = true
+
+fs_label = "BERYLLIUM"
+
+serial_console_enabled = true
+usb_msc_available = true
+usb_hid_available = true
+usb_midi_available = true
+wifi_available = true
+ble_available = false
+blc_available = false
+usb_msc_enabled = false
+usb_hid_enabled = false
+usb_midi_enabled = false
+tz_offset = 2
+
+ledtype = "neopixel_invert"
+led = "NEOPIXEL"
+
+DEBUG = false
+
+[IWD]
+#Network1 = "password1"
+#Network2 = "password2"
+
+[IWD-AP]
+SSID = "beryllium-ap"
+PASSWD = "CHANGEME WIFI PASSWORD"
+
+[RFKILL]
+wlan = false
+bluetooth = false

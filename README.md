@@ -44,6 +44,7 @@ Espressif:<br />
  - NodeMcu ESP32-C2 (experimental support)<br />
  - Wemos Lolin S2 Mini<br />
  - WeAct ESP32-C6<br />
+ - Waveshare ESP32-S3 DevKit NXRX<br />
  - Waveshare ESP32-S2-Pico<br />
  - Waveshare ESP32-S3-Zero<br />
 
