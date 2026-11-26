@@ -244,6 +244,10 @@ global console
 try:
     from usb_cdc import console
 
+    if console is not None:
+        # USB can disconnect during I/O. Let the shell return to console selection.
+        console.timeout = 0
+        console.write_timeout = 0.1
     pv[0]["consoles"]["ttyUSB0"] = console
     vr("console_active", "ttyUSB0")
 except ImportError:
