@@ -1,0 +1,15 @@
+Usage: sort [OPTION]... [FILE]
+  or:  sort [OPTION] (piped input)
+
+Write sorted lines of FILE (or the piped input) to output.
+
+With no FILE, or when FILE is -, read the piped input.
+
+  -n   compare according to numeric value; non-numeric lines sort last
+  -r   reverse the result of comparisons
+  -u   output only the first of equal adjacent lines
+  -h   display this help and exit
+
+Examples:
+  cat names.txt | sort      sort the lines of names.txt
+  sort -r -u words.txt      reverse-sort words.txt, dropping duplicates
