@@ -1,0 +1,11 @@
+Usage: sleep NUMBER[SUFFIX]...
+  or:  sleep OPTION
+
+Pause for NUMBER seconds. SUFFIX may be s, m, h, or d (seconds
+implied). Multiple NUMBER[SUFFIX] operands are summed together.
+
+  -h   display this help and exit
+
+Examples:
+  sleep 5          pause for 5 seconds
+  sleep 1m 30s     pause for 1 minute 30 seconds
