@@ -58,9 +58,6 @@
 [submodule "packages/fbs3-config"]
 	path = packages/fbs3-config
 	url = https://github.com/beryllium-org/fbs3-config
-[submodule "packages/womp"]
-	path = packages/womp
-	url = https://github.com/beryllium-org/womp
 [submodule "packages/wio-config"]
 	path = packages/wio-config
 	url = https://github.com/Beryllium-org/wio-config
@@ -88,9 +85,6 @@
 [submodule "packages/ftouchutils"]
 	path = packages/ftouchutils
 	url = https://github.com/beryllium-org/ftouchutils
-[submodule "packages/twm"]
-	path = packages/twm
-	url = https://github.com/beryllium-org/twm
 [submodule "packages/bma423utils"]
 	path = packages/bma423utils
 	url = https://github.com/beryllium-org/bma423utils
