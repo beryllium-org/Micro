@@ -1,0 +1,3 @@
+Usage: dirname [OPTION]... NAME...
+Strip the last component of each NAME, printing the directory part.
+  -h, --help        displays this help message.

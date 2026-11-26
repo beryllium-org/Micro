@@ -31,7 +31,10 @@ else:
         for pv[get_pid()]["nm"] in vr("names"):
             # Trailing slashes are not directory separators.
             vr("nm", vr("nm").rstrip("/"))
-            if vr("nm") == "":
+            if vr("nm") in ("&", "&/"):
+                # "&" is the board root above "/"; its basename is itself.
+                vr("base", "&/")
+            elif vr("nm") == "":
                 vr("base", "/")
             else:
                 vr("base", vr("nm")[vr("nm").rfind("/") + 1 :])
