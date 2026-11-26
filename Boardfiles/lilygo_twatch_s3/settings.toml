@@ -30,26 +30,6 @@ DEBUG = false
 # SSID = "beryllium-ap"
 # PASSWD = "CHANGEME WIFI PASSWORD"
 
-[TWM]
-brightness = 80
-suspend_brightness = 1
-vibration = true
-sounds = true
-notification_sound = false
-alarm_sound = false
-timer_sound = false
-
 [RFKILL]
 wlan = false
 bluetooth = false
-
-[SNAKE]
-hearts = 3
-score = 0
-level = 0
-apple_power = 0
-next_move = 0
-prev_move = 0
-chain = "8|7|2|9|7|6|10|7|8"
-apples = ""
-hscores = "0|0|0|0|0"

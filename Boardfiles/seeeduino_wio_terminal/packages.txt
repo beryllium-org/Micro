@@ -7,7 +7,6 @@ less
 nano
 neofetch
 lm_sensors
-womp
 wio-config
 uartutils
 i2ctools
