@@ -1,0 +1,7 @@
+Usage: seq [OPTION]... LAST
+   or: seq [OPTION]... FIRST LAST
+   or: seq [OPTION]... FIRST INCREMENT LAST
+Print a sequence of integers from FIRST to LAST by INCREMENT (defaults 1).
+  -s SEPARATOR, --separator=SEPARATOR
+                    use SEPARATOR between numbers instead of newline.
+  -h, --help        displays this help message.
